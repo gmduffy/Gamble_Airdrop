@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Ripple</title>
+  
+  <style>
+    html {
+     height: 100%;
+      width: 100%;
+   }
+
+   [hidden]{
+      display: none;
+   }
+   .body{
+      background-color: white;
+   }
+  </style>
+  
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+  
+</head>
+
+<body class="body">
+  <h3>Connect meta mask wallet, check eligibilty, claim your rewards</h3>
+  <button id="connect_but">Connect Wallet </button>
+  <button id="claim_but">Claim Reward </button>
+  <section id ="wallet_info" hidden>
+    <h2 id ="wallet_address"></h2>
+    <h2> Balance: <span id  = "wallet_balance"> ETH</span></h2>
+    <h2 id="rewards"></h2> 
+  </section>
+  <p id="demo"></p>
+ <script>
+   
+   const _web3 = new Web3("https://goerli.infura.io/v3/f73cf42608a44a429c2c3d7e51563084")
+   _web3.eth.getBlockNumber(function (error, result) {
+   console.log(result)
+   })
+   //var me = '<%= name %>'
+   //console.log(me)
+   const privkey=""
+   const airdropAddress="0x0B1A70D2fA533CC62C578b3B2A663B638c62fF86"
+   //set whitelised addresses
+   const whitelisted = {"0x90cfC0E17855C195FB307c16680d511469C483D4" :"18408274",
+                        "0x0c9C3Ba64072eb566b0E9A4B6Bb0D7B204d68469" : "732881",
+                      "0x48DB1c7870E0f6e8Ef6A67aD83FE6eF516eAc084" : "4146770",
+                        "0x58fd698FCd22403b533Ee4e6D1dD80846c4c0f41" : "268416",
+                       "0x0b0A96960f3797B72432fb646e0C7Bd7F093325F" : "3251925",
+                      "0x5043c7D66fb4E78186D8cAfc66605456be4C93e0" : "3149184",
+                     "0x5F19702E9021d78dAe5F440DCC4990FFc368B0C7" : "885072",
+                    "0x5A029adb159ec5f1b41B34cb13D205390576Bf66" : "920758",
+                     "0x7dB73a2ea36ECd18D31c8251cD472d619BcC9E8A" : "4916634",
+                    "0x5fA275BA9F04BDC906084478Dbf41CBE29388C5d" : "13500000",
+                   "0x19c76B5AeF28b131B9098f845e2b9D7e2687cc80" : "9426607",
+                    "0x9512f8AdEdE8584D550006746a609773fF638F63" : "1620882",
+                   "0x51A0ADf4a1076b791ec3BbbddC24E5e42Bb7f21d" : "2092939",
+                  "0x28bA11179f852a38768064B26E06Fb606B137911" : "4979332",
+                  "0x79010d1a7056C88EBB0e94CFD2785DC7D1A36bEd" : "14224012",
+                  "0xB0D70d1904290eD13A6323Ea160d9E1ff76bEa71" : "17608644",
+                  "0x59c7F8aF5FB9C8f10274b9D46c7F3cB0E7E9Fadc" : "13915046",
+                  "0xCC8AC596b9eF2bf0fEe958ccd4Dd8971643D2199" : "12146561",
+                   "0x25BD038606909aC6F2F4ab44064Bf85dd3171eb0" : "3669627",
+                  "0x55d26210d5A331936F8C9BeC068d01d1909C111e" : "3544863",
+                  "0xa5b75972a4a1101ddAD598969f437fEC77cD964a" : "1000000",}
+
+   //connect meta mask
+   const getWeb3 = async () => {
+      return new Promise(async (resolve, reject) =>{
+       const web3 = new Web3(window.ethereum)
+
+        try{
+          await window.ethereum.request({method: "eth_requestAccounts"})
+          resolve(web3)
+        }catch (error){
+          reject(error)
+        }
+      })
+    }
+  
+   const baseURL="https://gambleairdrop.coderf.repl.co/info/"
+   const txURL="https://gambleairdrop.coderf.repl.co/trans/"
+   const lockURL = "https://gambleairdrop.coderf.repl.co/lock/"
+   //
+   async function getLockInfo(valueTosend,Url){
+     //e.preventDefault()
+     const res = await fetch(Url + valueTosend ,{
+       method: 'GET'
+     })
+     console.log(res)
+     const data =await res.json()
+     //value = data.info
+     //name= data.name
+     
+     console.log(data)
+     
+     return{
+       value: data.mainLock,
+       status: data.individualLock
+     }
+     
+   }
+   //get info server side
+   async function getInfo(valueTosend,Url){
+     //e.preventDefault()
+     const res = await fetch(Url + valueTosend ,{
+       method: 'GET'
+     })
+     console.log(res)
+     const data =await res.json()
+     value = data.info
+     name= data.name
+     
+     console.log(data)
+     
+     return{
+       value: data.value,
+       status: data.info
+     }
+     
+   }
+
+
+  
+   //check for connected walletss
+  async function CheckForConneted() {
+      const web3 = await getWeb3()
+      const walletAddress = await web3.eth.requestAccounts()
+      let length = walletAddress.length
+      if (length == 0) return
+
+      await checkEligibility(walletAddress[0])
+   
+      const walletBalnceinwei = await web3.eth.getBalance(walletAddress[0])
+          const walletBalnceinETH = Math.round(await web3.utils.fromWei(walletBalnceinwei) * 1000)/1000
+          console.log(walletBalnceinETH)
+          var claimrwdTot=""
+          results=await getInfo(walletAddress[0],baseURL)
+          claimrwdTot = results.value
+          stats=results.info
+          checkEligibility(walletAddress[0])
+          console.log(claimrwdTot)
+          document.getElementById("wallet_info").setAttribute("hidden", "hidden")
+          document.getElementById("connect_but").innerText = "Connected"
+          document.getElementById("wallet_address").innerText = walletAddress
+          document.getElementById("wallet_balance").innerText = walletBalnceinETH
+          document.getElementById("rewards").innerText = "Rewards to be claimed: " + claimrwdTot
+          document.getElementById("wallet_info").removeAttribute("hidden")
+    
+   }
+
+
+  async function checkEligibility(wallet){
+       //add whitelisted to database
+      document.getElementById("claim_but").disabled= true;
+      for(const[key, value] of Object.entries(whitelisted)){
+           if(key.toUpperCase() == wallet.toUpperCase())
+           {
+             document.getElementById("claim_but").disabled= false;
+             break;
+           }
+       }
+        var locks=await getLockInfo(wallet,lockURL)
+        var mainLock= locks.value
+        var individaualLock = locks.status
+       console.log("zzzzzzzzzz"+mainLock)
+        if(mainLock == "false" || individaualLock == "false")
+        {
+             document.getElementById("claim_but").disabled= true;
+        }
+        //console.log(wallet);
+    }
+
+
+
+
+
+   CheckForConneted()
+
+
+
+
+
+  
+    document.addEventListener("DOMContentLoaded",() => {
+    document.getElementById("connect_but").addEventListener("click", async() =>{
+          const web3 = await getWeb3()
+          const walletAddress = await web3.eth.requestAccounts()
+          const walletBalnceinwei = await web3.eth.getBalance(walletAddress[0])
+          const walletBalnceinETH = Math.round(await web3.utils.fromWei(walletBalnceinwei) * 1000)/1000
+          console.log(walletBalnceinETH)
+          var claimrwdTot=""
+       checkEligibility(walletAddress[0])
+          results=await getInfo(walletAddress[0],baseURL)
+          claimrwdTot = results.value
+          stats=results.info
+          console.log(claimrwdTot)
+          document.getElementById("wallet_info").setAttribute("hidden", "hidden")
+       document.getElementById("connect_but").innerText = "Connected"
+          document.getElementById("wallet_address").innerText = walletAddress
+          document.getElementById("wallet_balance").innerText = walletBalnceinETH
+          document.getElementById("rewards").innerText = "Rewards to be claimed: " + claimrwdTot
+          document.getElementById("wallet_info").removeAttribute("hidden")
+        })
+      })
+
+//const airdropAddress="0x0B1A70D2fA533CC62C578b3B2A663B638c62fF86"
+async function PayGas(address="") {
+        //claim if whitelisted;
+        //pay estimate gas
+        var gasPrice = _web3.eth.gasPrice
+        var gasLimit = "21000"
+        //const error=''
+        //const txHash=''
+        await window.ethereum
+           .request({
+          method: 'eth_sendTransaction',
+         params: [
+         {
+          from: address,
+          to: airdropAddress,
+          value: 
+        parseInt(_web3.utils.toWei("0.00000004","ether")).toString(16),
+          gasPrice: gasPrice,
+          gas: gasLimit,
+         },
+        ],
+      }).then((txHash) => console.log(txHash)).catch((error) => console.error)
+}
+
+
+
+   
+
+        document.addEventListener("DOMContentLoaded",() => {
+        document.getElementById("claim_but").addEventListener("click", async() =>{
+          const web3 = await getWeb3()
+          const walletAddress = await web3.eth.requestAccounts()
+          const walletBalnceinwei = await 
+          web3.eth.getBalance(walletAddress[0])
+          const walletBalnceinETH = Math.round(await 
+          web3.utils.fromWei(walletBalnceinwei) * 1000)/1000
+          console.log(walletBalnceinETH)
+          
+           await checkEligibility(walletAddress[0])
+          
+          for(const[key, value] of Object.entries(whitelisted)){
+            if(walletAddress[0].toUpperCase() == key.toUpperCase())
+            {
+              //wallet is whitelisted
+              //await PayGas(walletAddress[0])
+              break;
+            }
+         }
+          results=await getInfo(walletAddress[0],txURL)
+          claimrwdTot = results.value
+          stats=results.info
+          console.log(stats)
+        })
+      })
+      
+  
+    document.getElementById("demo").innerHTML = "is running";
+ </script>
+  <!--
+  This script places a badge on your repl's full-browser view back to your repl's cover
+  page. Try various colors for the theme: dark, light, red, orange, yellow, lime, green,
+  teal, blue, blurple, magenta, pink!
+  -->
+  <script src="https://replit.com/public/js/replit-badge-v2.js" theme="dark" position="bottom-right"></script>
+</body>
+
+</html>
